@@ -181,6 +181,69 @@ class YoLov5TRT(object):
                 )
         return batch_image_raw, end - start
 
+    def inferOneImage(self, img, drawable= 1):
+        """
+        description: infer one image using customized yolov5
+        param:
+            img: the input image
+        return:
+            # image_raw: the the processed image (detections is drawable)
+            result_boxes: finally boxes, a boxes numpy, each row is a box [x1, y1, x2, y2]
+            result_scores: finally scores, a numpy, each element is the score correspoing to box
+            result_classid: finally classid, a numpy, each element is the classid correspoing to box
+            end - start : infering time
+        """
+        threading.Thread.__init__(self)
+        # Make self the active context, pushing it on top of the context stack.
+        self.ctx.push()
+        # Restore
+        stream = self.stream
+        context = self.context
+        engine = self.engine
+        host_inputs = self.host_inputs
+        cuda_inputs = self.cuda_inputs
+        host_outputs = self.host_outputs
+        cuda_outputs = self.cuda_outputs
+        bindings = self.bindings
+        # Do image preprocess
+        assert(self.batch_size == 1)
+        batch_input_image = np.empty(shape=[self.batch_size, 3, self.input_h, self.input_w])
+        input_image, image_raw, origin_h, origin_w = self.preprocess_image(img)
+        np.copyto(batch_input_image[0], input_image)
+        batch_input_image = np.ascontiguousarray(batch_input_image)
+
+        # Copy input image to host buffer
+        np.copyto(host_inputs[0], batch_input_image.ravel())
+        start = time.time()
+        # Transfer input data  to the GPU.
+        cuda.memcpy_htod_async(cuda_inputs[0], host_inputs[0], stream)
+        # Run inference.
+        context.execute_async(batch_size=self.batch_size, bindings=bindings, stream_handle=stream.handle)
+        # Transfer predictions back from the GPU.
+        cuda.memcpy_dtoh_async(host_outputs[0], cuda_outputs[0], stream)
+        # Synchronize the stream
+        stream.synchronize()
+        end = time.time()
+        # Remove any context from the top of the context stack, deactivating it.
+        self.ctx.pop()
+        # Here we use the first row of output in that batch_size = 1
+        output = host_outputs[0]
+        # Do postprocess
+        result_boxes, result_scores, result_classid = self.post_process(
+                output[0 : 6001], origin_h, origin_w
+            )
+        # Draw rectangles and labels on the original image
+        if drawable == 1: 
+            for j in range(len(result_boxes)):
+                box = result_boxes[j]
+                plot_one_box(
+                    box,
+                    image_raw,
+                    # label="{}:{:.2f}".format(
+                    #     CATEGORIES[int(result_classid[j])], result_scores[j]), 
+                    color= (0,255,0)) # color of bounding box is green 
+        return result_boxes, result_scores, result_classid, end - start
+
     def destroy(self):
         # Remove any context from the top of the context stack, deactivating it.
         self.ctx.pop()
@@ -440,8 +503,8 @@ if __name__ == "__main__":
         for i in range(10):
             # create a new thread to do warm_up
             thread1 = warmUpThread(yolov5_wrapper)
-            thread1.start()
-            thread1.join()
+            thread1.start() # chuẩn bị
+            thread1.join() # bắt đầu thực thi run()
         for batch in image_path_batches:
             # create a new thread to do inference
             thread1 = inferThread(yolov5_wrapper, batch)

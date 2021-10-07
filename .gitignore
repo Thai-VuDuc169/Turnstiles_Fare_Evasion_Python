@@ -129,7 +129,13 @@ dmypy.json
 .pyre/
 
 # images format
-*.jpg
+# *.jpg
 
 # office files
 *.docx
+
+# output folder
+output
+videos
+*.avi
+*.mp4
