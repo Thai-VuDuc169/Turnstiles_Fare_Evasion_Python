@@ -31,14 +31,14 @@ metric = nn_matching.NearestNeighborDistanceMetric("cosine", MAX_COSINE_DISTANCE
 tracker = Tracker(metric)
 
 ################################### declare a instance of VirtualFence
-POINTS = ((100, 100), (300, 300)) # A and B
+POINTS = ((0, 480), (1000, 360)) # A and B
 virtual_fence = VirtualFence(POINTS[0], POINTS[1])
 
 ################################### path to folder containing cropped images
-if os.path.exists('output/'):
-   shutil.rmtree('output/')
-os.makedirs('output/')
-CROPPED_IMAGES_PATH = r"/home/thaivu/Projects/Turnstiles_Fare_Evasion_Python/output/"
+if os.path.exists('video_output/'):
+   shutil.rmtree('video_output/')
+os.makedirs('video_output/')
+# CROPPED_IMAGES_PATH = r"/home/thaivu/Projects/Turnstiles_Fare_Evasion_Python/video_output/"
 
 ################################### path to video demo and capture frames
 VIDEO_PATH = r"/home/thaivu/Projects/Turnstiles_Fare_Evasion_Python/videos/test_tracking_human1.mp4"
@@ -48,15 +48,17 @@ frame_height = int(input_cap.get(cv.CAP_PROP_FRAME_HEIGHT))
 size = (frame_width, frame_height)
 print("Size: {}".format(size))
 ################################### create output folder to store the video
-# output_video = cv.VideoWriter( "output/detection_demo.avi", cv.VideoWriter_fourcc(*'MJPG'), 20 , size, isColor = True)
+output_video = cv.VideoWriter( "video_output/logistic_check_demo.avi", cv.VideoWriter_fourcc(*'MJPG'), 16 , size, isColor = True)
 
 # color for tracked objects 
-COLOR = [(255, 255, 0), (204, 0, 153), (26, 209, 255), (71, 107, 107)]
+NORMAL_TRACKING_COLOR = (255, 0, 0) # blue color
+OVER_VF_TRACKING_COLOR = (0, 0, 255) # red color
+ID_COLOR = (0, 255, 0) # green color
+VF_COLOR = (0, 0, 255) # red color
 
 try:   
    # create a YoLov5TRT instance
    yolov5_wrapper = YoLov5TRT(ENGINE_FILE_PATH)
-   frame_count = 0
    while input_cap.isOpened():
       is_read, frame = input_cap.read()
       if not is_read:
@@ -75,32 +77,36 @@ try:
       tracker.update(detections)
       # Update current state of each track in tracks
       virtual_fence.updateCurrentStates(tracker.tracks)
-      track_count = 0
       for track in tracker.tracks:
          if not track.is_confirmed() or track.time_since_update > 1:
             continue
 
-         if track.pre_state == None:
+         if track.pre_state == None or track.pre_state == track.current_state:
+            track_box = track.to_tlbr()
+            cv.rectangle(frame, (track_box[0], track_box[1]), (track_box[2], track_box[3]),
+                        NORMAL_TRACKING_COLOR, 4)
+            cv.putText(frame,"ID: " + str(track.track_id), (track_box[0], track_box[1]), 
+                        cv.FONT_HERSHEY_SIMPLEX, 1, ID_COLOR, cv.LINE_AA)
             track.pre_state = track.current_state
             continue
-         if track.pre_state == track.current_state:
-            continue
+
          else:
             track_box = track.to_tlbr()
-            # temp_img = cropImage(frame, track.to_tlbr())
-            temp_img = frame[int(track_box[1]) : int(track_box[3]), int(track_box[0]) : int(track_box[2]),:]
-            cv.imwrite(CROPPED_IMAGES_PATH + r"fc_" + str(frame_count) + 
-                           r"_tc_" + str(track_count) + r"_ID_" + str(track.track_id) + r".jpg" 
-                        ,temp_img)
+            cv.rectangle(frame, (track_box[0], track_box[1]), (track_box[2], track_box[3]),
+                        OVER_VF_TRACKING_COLOR, 4)
+            cv.putText(frame,"ID: " + str(track.track_id), (track_box[0], track_box[1]), 
+                        cv.FONT_HERSHEY_SIMPLEX, 1, ID_COLOR, cv.LINE_AA)
             track.pre_state = track.current_state
-            track_count += 1
             continue
-      frame_count += 1
+
+      virtual_fence.drawLine(frame, VF_COLOR)
+         # track_box = track.to_tlbr()
+      output_video.write(frame)
 
 finally:
    # destroy the instance
    yolov5_wrapper.destroy()
 
 input_cap.release()
-# output_video.release()
+output_video.release()
 print("OK!")

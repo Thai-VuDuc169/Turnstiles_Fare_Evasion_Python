@@ -32,8 +32,8 @@ class VirtualFence:
       self.B_point = B_point
       self.remainder = self.A_point[0] * self.B_point[1] - self.B_point[0] * self.A_point[1]
       
-   def drawLine(self, frame):
-      cv.line(frame, self.A_point, self.B_point, (0, 0, 255), thickness= 2)
+   def drawLine(self, frame, color):
+      cv.line(frame, self.A_point, self.B_point, color, thickness= 4)
       
    def updateCurrentStates(self, tracks):
       """Update current state of each track in tracks (on which side of the virtual fence?)

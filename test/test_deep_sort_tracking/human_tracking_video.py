@@ -36,7 +36,7 @@ frame_width = int(input_cap.get(cv.CAP_PROP_FRAME_WIDTH))
 frame_height = int(input_cap.get(cv.CAP_PROP_FRAME_HEIGHT))
 size = (frame_width, frame_height)
 print("Size: {}".format(size))
-output_video = cv.VideoWriter( "output/detection_demo.avi", cv.VideoWriter_fourcc(*'MJPG'), 20 , size, isColor = True)
+output_video = cv.VideoWriter( "output/tracking_demo.avi", cv.VideoWriter_fourcc(*'MJPG'), 20 , size, isColor = True)
 # color for tracked objects 
 COLOR = [(255, 255, 0), (204, 0, 153), (26, 209, 255), (71, 107, 107)]
 
@@ -46,7 +46,8 @@ try:
    encoder = gdet.create_box_encoder(TRACKING_MODEL, batch_size=1)
    metric = nn_matching.NearestNeighborDistanceMetric("cosine", MAX_COSINE_DISTANCE, NN_BUDGET)
    tracker = Tracker(metric)
-   while input_cap.isOpened():
+   # while input_cap.isOpened():
+   for inter in range(20): 
       is_read, frame = input_cap.read()
       if not is_read:
          break

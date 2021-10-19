@@ -96,7 +96,7 @@ class Track:
         ret = self.mean[:4].copy()
         ret[2] *= ret[3]
         ret[:2] -= ret[2:] / 2
-        return ret
+        return ret.astype(int)
 
     def to_tlbr(self):
         """Get current position in bounding box format `(min x, miny, max x,
@@ -110,7 +110,7 @@ class Track:
         """
         ret = self.to_tlwh()
         ret[2:] = ret[:2] + ret[2:]
-        return ret
+        return ret.astype(int)
 
     def predict(self, kf):
         """Propagate the state distribution to the current time step using a
