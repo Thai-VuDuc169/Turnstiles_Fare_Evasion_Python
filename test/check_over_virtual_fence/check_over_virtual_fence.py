@@ -6,7 +6,7 @@ import shutil
 import threading
 import cv2 as cv
 import numpy as np
-sys.path.append(r"/home/thaivu/Projects/Turnstiles_Fare_Evasion_Python")
+sys.path.append(r"/home/thaivu169/Projects/Turnstiles_Fare_Evasion_Python")
 
 from detections.yolov5.yolov5_trt import YoLov5TRT
 
@@ -18,14 +18,14 @@ from utils import generate_detections as gdet
 from utils.preprocessing import tlbr2tlwh, cropImage, VirtualFence
 
 ################################### path to plugin and engine of the customized human detection 
-PLUGIN_LIBRARY = r"plugins/human_yolov5_plugin/libmyplugins.so"
-ENGINE_FILE_PATH = r"plugins/human_yolov5_plugin/yolov5s_custom.engine"
+PLUGIN_LIBRARY = r"plugins/human_yolov5/jetson_TX2/libmyplugins.so"
+ENGINE_FILE_PATH = r"plugins/human_yolov5/jetson_TX2/human_yolov5s_v5.engine"
 ctypes.CDLL(PLUGIN_LIBRARY)
 
 ################################### path to a model of traking and initialize a tracker
 NN_BUDGET = None
 MAX_COSINE_DISTANCE = 0.3
-TRACKING_MODEL = r"models/deep_sort_model/mars-small128.pb"
+TRACKING_MODEL = r"models/deep_sort/mars-small128.pb"
 encoder = gdet.create_box_encoder(TRACKING_MODEL, batch_size=1)
 metric = nn_matching.NearestNeighborDistanceMetric("cosine", MAX_COSINE_DISTANCE, NN_BUDGET)
 tracker = Tracker(metric)
@@ -38,10 +38,10 @@ virtual_fence = VirtualFence(POINTS[0], POINTS[1])
 if os.path.exists('output/'):
    shutil.rmtree('output/')
 os.makedirs('output/')
-CROPPED_IMAGES_PATH = r"/home/thaivu/Projects/Turnstiles_Fare_Evasion_Python/output/"
+CROPPED_IMAGES_PATH = r"output/"
 
 ################################### path to video demo and capture frames
-VIDEO_PATH = r"/home/thaivu/Projects/Turnstiles_Fare_Evasion_Python/videos/test_tracking_human1.mp4"
+VIDEO_PATH = r"videos/test_tracking_human1.mp4"
 input_cap = cv.VideoCapture(VIDEO_PATH)
 frame_width = int(input_cap.get(cv.CAP_PROP_FRAME_WIDTH))
 frame_height = int(input_cap.get(cv.CAP_PROP_FRAME_HEIGHT))

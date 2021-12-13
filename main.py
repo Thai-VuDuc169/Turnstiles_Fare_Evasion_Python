@@ -1,42 +1,111 @@
+from __future__ import division, print_function, absolute_import
+import sys
 import ctypes
 import os
 import shutil
-import sys
 import threading
-from detections.yolov5.yolov5_trt import YoLov5TRT, get_img_path_batches, plot_one_box, inferThread, warmUpThread
+import cv2 as cv
+import numpy as np
 
-# load custom plugin and engine
-PLUGIN_LIBRARY = r"plugins/human_yolov5_plugin/libmyplugins.so"
-ENGINE_FILE_PATH = r"plugins/human_yolov5_plugin/yolov5s_custom.engine"
+from detections.yolov5.yolov5_trt import YoLov5TRT
 
-# if len(sys.argv) > 1:
-#    ENGINE_FILE_PATH = sys.argv[1]
-# if len(sys.argv) > 2:
-#    PLUGIN_LIBRARY = sys.argv[2]
+from tracking.deep_sort import nn_matching
+from tracking.deep_sort.detection import Detection
+from tracking.deep_sort.tracker import Tracker
 
+from pose_estimations.efficient_pose.tf_model import EfficientPose
+
+from utils.deep_sort import generate_detections as gdet
+from utils.vf_logic_checking import tlbr2tlwh, cropImage, VirtualFence 
+
+################################### path to plugin and engine of the customized human detection 
+PLUGIN_LIBRARY = r"plugins/human_yolov5/jetson_TX2/libmyplugins.so"
+ENGINE_FILE_PATH = r"plugins/human_yolov5/jetson_TX2/human_yolov5s_v5.engine"
 ctypes.CDLL(PLUGIN_LIBRARY)
 
+################################### path to a model of traking and initialize a tracker
+NN_BUDGET = None
+MAX_COSINE_DISTANCE = 0.3
+TRACKING_MODEL = r"models/deep_sort/mars-small128.pb"
+encoder = gdet.create_box_encoder(TRACKING_MODEL, batch_size=1)
+metric = nn_matching.NearestNeighborDistanceMetric("cosine", MAX_COSINE_DISTANCE, NN_BUDGET)
+tracker = Tracker(metric)
+
+################################### declare a instance of VirtualFence
+POINTS = ((419, 1078), (728, 930)) # A and B
+virtual_fence = VirtualFence(POINTS[0], POINTS[1])
+
+################################### path to video demo and capture frames
+# VIDEO_PATH = r"test/videos/jumping_right_downward_cam3.MOV"
+VIDEO_PATH = r"test/videos/test_tracking_human1.mp4"
+input_cap = cv.VideoCapture(VIDEO_PATH)
+frame_width = int(input_cap.get(cv.CAP_PROP_FRAME_WIDTH))
+frame_height = int(input_cap.get(cv.CAP_PROP_FRAME_HEIGHT))
+size = (frame_width, frame_height)
+print("Size: {}".format(size))
+
+################################### path to folder containing cropped images
+CROPPED_IMAGES_PATH = r"output/rgb_imgs"
+CROPPED_BINARY_IMAGES_PATH = r"output/bin_imgs"
 if os.path.exists('output/'):
    shutil.rmtree('output/')
-os.makedirs('output/')
-# a YoLov5TRT instance
-yolov5_wrapper = YoLov5TRT(ENGINE_FILE_PATH)
-try:
-   print('batch size is', yolov5_wrapper.batch_size)
-   
-   image_dir = "/home/thaivu/Projects/TestImages"
-   image_path_batches = get_img_path_batches(yolov5_wrapper.batch_size, image_dir)
+os.makedirs(CROPPED_IMAGES_PATH)
+os.makedirs(CROPPED_BINARY_IMAGES_PATH)
 
-   for i in range(10):
-      # create a new thread to do warm_up
-      thread1 = warmUpThread(yolov5_wrapper)
-      thread1.start()
-      thread1.join()
-   for batch in image_path_batches:
-      # create a new thread to do inference
-      thread1 = inferThread(yolov5_wrapper, batch)
-      thread1.start()
-      thread1.join()
+################################### initialize efficient pose models (framework: tensorflow)
+efficient_pose = EfficientPose(CROPPED_BINARY_IMAGES_PATH, model_name= "II")
+
+
+try:   
+   # create a YoLov5TRT instance
+   yolov5_wrapper = YoLov5TRT(ENGINE_FILE_PATH)
+   frame_count = 0
+   while input_cap.isOpened():
+      is_read, frame = input_cap.read()
+      if not is_read:
+         break
+      result_boxes, result_scores, result_classid, _ = yolov5_wrapper.inferOneImage(frame, drawable= None)
+      if result_boxes is None:
+         continue
+      tlbr2tlwh(result_boxes)
+      detect_box = np.copy(result_boxes)
+      # 1 Detection gồm (tlwh, conf, feature)
+      # frame đầu vào ở đây là ảnh chưa được xử lý (frame sau khi xử lý không bị thay đổi), boxes định dạng tlwh
+      features = encoder(frame, boxes= result_boxes)
+      detections = [Detection(box, confidence, feature)
+                     for box, confidence, feature 
+                     in zip(detect_box, result_scores, features)]
+      # Update tracker
+      tracker.predict()
+      tracker.update(detections)
+      # Update current state of each track in tracks
+      virtual_fence.updateCurrentStates(tracker.tracks)
+      track_count = 0
+      for track in tracker.tracks:
+         if not track.is_confirmed() or track.time_since_update > 1:
+            continue
+         if track.pre_state == None:
+            track.pre_state = track.current_state
+            continue
+         if track.pre_state == track.current_state:
+            continue
+         else:
+            track_box = track.to_tlbr()
+            temp_img = frame[int(track_box[1]) : int(track_box[3]), int(track_box[0]) : int(track_box[2]),:]
+            file_name = r"fc_" + str(frame_count) + r"_tc_" + str(track_count) + r"_ID_" + str(track.track_id) + r".png";
+            cv.imwrite(os.path.join(CROPPED_IMAGES_PATH + file_name) ,temp_img)
+            
+            # result = efficient_pose.estimatePose(np.asarray(temp_img[...]))
+            # print("Results: " + result)
+
+            track.pre_state = track.current_state
+            track_count += 1
+            continue
+      frame_count += 1
+
 finally:
    # destroy the instance
    yolov5_wrapper.destroy()
+
+input_cap.release()
+print("OK!")
