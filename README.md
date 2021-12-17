@@ -150,3 +150,7 @@ sudo apt-get install -y libmediainfo-dev
 ```
 ls -ltrh /dev/video*
 ```
+- ffprobe is reporting the actual width x height. Width is displayed first, then height (no matter the order you request it). Your player is using the rotate metadata or the displaymatrix side data and rotating upon playback.
+```
+ffprobe -v error -select_streams v:0 -show_entries stream=width,height:stream_tags=rotate -of csv=p=0 input.mp4
+```

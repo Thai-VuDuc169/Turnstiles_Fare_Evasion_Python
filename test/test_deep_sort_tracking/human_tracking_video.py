@@ -13,20 +13,20 @@ from detections.yolov5.yolov5_trt import YoLov5TRT, get_img_path_batches, plot_o
 from tracking.deep_sort import nn_matching
 from tracking.deep_sort.detection import Detection
 from tracking.deep_sort.tracker import Tracker
-from utils import generate_detections as gdet
-from utils.preprocessing import tlbr2tlwh
+from utils.deep_sort import generate_detections as gdet
+from utils.vf_logic_checking import tlbr2tlwh
 
 # path to plugin and engine of the customized human detection 
-PLUGIN_LIBRARY = r"plugins/human_yolov5_plugin/libmyplugins.so"
-ENGINE_FILE_PATH = r"plugins/human_yolov5_plugin/yolov5s_custom.engine"
+PLUGIN_LIBRARY = r"plugins/human_yolov5/jetson_TX2/libmyplugins.so"
+ENGINE_FILE_PATH = r"plugins/human_yolov5/jetson_TX2/human_yolov5s_v5.engine"
 ctypes.CDLL(PLUGIN_LIBRARY)
 # path to a model of traking 
 NN_BUDGET = None
 MAX_COSINE_DISTANCE = 0.3
-TRACKING_MODEL = r"models/deep_sort_model/mars-small128.pb"
+TRACKING_MODEL = r"models/deep_sort/mars-small128.pb"
 results = []
 # path to video demo and capture frames
-VIDEO_PATH = r"/home/thaivu/Projects/Turnstiles_Fare_Evasion_Python/videos/test_tracking_human1.mp4"
+VIDEO_PATH = r"test/videos/jumping_right_downward_cam3.MOV"
 input_cap = cv.VideoCapture(VIDEO_PATH)
 # create output folder to store the video
 if os.path.exists('output/'):
@@ -34,7 +34,8 @@ if os.path.exists('output/'):
 os.makedirs('output/')
 frame_width = int(input_cap.get(cv.CAP_PROP_FRAME_WIDTH))
 frame_height = int(input_cap.get(cv.CAP_PROP_FRAME_HEIGHT))
-size = (frame_width, frame_height)
+# size = (frame_width, frame_height)
+size = (frame_height, frame_width) # apply for input video: "test/videos/*cam(x).MOV" 
 print("Size: {}".format(size))
 output_video = cv.VideoWriter( "output/tracking_demo.avi", cv.VideoWriter_fourcc(*'MJPG'), 20 , size, isColor = True)
 # color for tracked objects 
@@ -46,12 +47,12 @@ try:
    encoder = gdet.create_box_encoder(TRACKING_MODEL, batch_size=1)
    metric = nn_matching.NearestNeighborDistanceMetric("cosine", MAX_COSINE_DISTANCE, NN_BUDGET)
    tracker = Tracker(metric)
-   # while input_cap.isOpened():
-   for inter in range(20): 
+   while input_cap.isOpened():
       is_read, frame = input_cap.read()
+      frame = cv.rotate(frame, cv.ROTATE_90_CLOCKWISE)
       if not is_read:
          break
-      result_boxes, result_scores, result_classid, _ = yolov5_wrapper.inferOneImage(frame, drawable= None)
+      result_boxes, result_scores, result_classid, _ = yolov5_wrapper.inferOneImage(frame, drawable= 1)
       tlbr2tlwh(result_boxes)
       detect_box = np.copy(result_boxes)
       # 1 Detection gồm (tlwh, conf, feature)

@@ -14,8 +14,8 @@ from tracking.deep_sort import nn_matching
 from tracking.deep_sort.detection import Detection
 from tracking.deep_sort.tracker import Tracker
 
-from utils import generate_detections as gdet
-from utils.preprocessing import tlbr2tlwh, cropImage, VirtualFence
+from utils.deep_sort import generate_detections as gdet
+from utils.vf_logic_checking import tlbr2tlwh, cropImage, VirtualFence
 
 ################################### path to plugin and engine of the customized human detection 
 PLUGIN_LIBRARY = r"plugins/human_yolov5/jetson_TX2/libmyplugins.so"
@@ -31,7 +31,7 @@ metric = nn_matching.NearestNeighborDistanceMetric("cosine", MAX_COSINE_DISTANCE
 tracker = Tracker(metric)
 
 ################################### declare a instance of VirtualFence
-POINTS = ((100, 100), (300, 300)) # A and B
+POINTS = ((431, 1092), (747, 929)) # A and B
 virtual_fence = VirtualFence(POINTS[0], POINTS[1])
 
 ################################### path to folder containing cropped images
@@ -41,11 +41,12 @@ os.makedirs('output/')
 CROPPED_IMAGES_PATH = r"output/"
 
 ################################### path to video demo and capture frames
-VIDEO_PATH = r"videos/test_tracking_human1.mp4"
+VIDEO_PATH = r"test/videos/jumping_right_downward_cam3.MOV"
 input_cap = cv.VideoCapture(VIDEO_PATH)
 frame_width = int(input_cap.get(cv.CAP_PROP_FRAME_WIDTH))
 frame_height = int(input_cap.get(cv.CAP_PROP_FRAME_HEIGHT))
-size = (frame_width, frame_height)
+# size = (frame_width, frame_height)
+size = (frame_height, frame_width) # apply for input video: "test/videos/jumping_right_downward_cam3.MOV" 
 print("Size: {}".format(size))
 ################################### create output folder to store the video
 # output_video = cv.VideoWriter( "output/detection_demo.avi", cv.VideoWriter_fourcc(*'MJPG'), 20 , size, isColor = True)
@@ -61,7 +62,13 @@ try:
       is_read, frame = input_cap.read()
       if not is_read:
          break
+      frame = cv.rotate(frame, cv.ROTATE_90_CLOCKWISE)
       result_boxes, result_scores, result_classid, _ = yolov5_wrapper.inferOneImage(frame, drawable= None)
+
+      if len(result_boxes) == 0:
+         print ("frame_count: " + str(frame_count) + " : result_boxes is empty!")
+         continue
+
       tlbr2tlwh(result_boxes)
       detect_box = np.copy(result_boxes)
       # 1 Detection gồm (tlwh, conf, feature)
@@ -87,11 +94,11 @@ try:
             continue
          else:
             track_box = track.to_tlbr()
-            # temp_img = cropImage(frame, track.to_tlbr())
             temp_img = frame[int(track_box[1]) : int(track_box[3]), int(track_box[0]) : int(track_box[2]),:]
             cv.imwrite(CROPPED_IMAGES_PATH + r"fc_" + str(frame_count) + 
                            r"_tc_" + str(track_count) + r"_ID_" + str(track.track_id) + r".jpg" 
                         ,temp_img)
+            print("saved!")
             track.pre_state = track.current_state
             track_count += 1
             continue
