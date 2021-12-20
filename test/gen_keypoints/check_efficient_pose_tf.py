@@ -6,7 +6,7 @@ from PIL import Image
 sys.path.append(r"/home/thaivu169/Projects/Turnstiles_Fare_Evasion_Python")
 
 
-from pose_estimations.efficient_pose.tf_model import EfficientPose
+from pose_estimations.efficient_pose.trt_model import EfficientPose
 
 FOLDER_PATH = r"test/images"
 MODEL_VARIANT = r"III"

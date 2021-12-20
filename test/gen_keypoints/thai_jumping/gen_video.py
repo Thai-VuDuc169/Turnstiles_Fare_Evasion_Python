@@ -17,7 +17,7 @@ from tracking.deep_sort.tracker import Tracker
 from utils.deep_sort import generate_detections as gdet
 from utils.vf_logic_checking import tlbr2tlwh, cropImage, VirtualFence
 
-from pose_estimations.efficient_pose.tflite_model import EfficientPose
+from pose_estimations.efficient_pose.trt_model import EfficientPose
 
 ################################### path to plugin and engine of the customized human detection 
 PLUGIN_LIBRARY = r"plugins/human_yolov5/jetson_TX2/libmyplugins.so"
@@ -33,8 +33,8 @@ metric = nn_matching.NearestNeighborDistanceMetric("cosine", MAX_COSINE_DISTANCE
 tracker = Tracker(metric)
 
 ################################### declare a instance of VirtualFence
-# POINTS = ((431, 1092), (747, 929)) # A and B for cam 3
-POINTS = ((260, 1099), (810, 1098)) # A and B for cam 2
+POINTS = ((431, 1092), (747, 929)) # A and B for cam 3
+# POINTS = ((260, 1099), (810, 1098)) # A and B for cam 2
 virtual_fence = VirtualFence(POINTS[0], POINTS[1])
 
 ################################### path to folder containing cropped images
@@ -46,7 +46,7 @@ CROPPED_IMAGES_PATH = r"output/"
 BIN_IMAGES_PATH = r"output/bin_imgs"
 
 ################################### path to video demo and capture frames
-VIDEO_PATH = r"test/videos/jumping_downward_cam2.MOV"
+VIDEO_PATH = r"test/videos/jumping_right_downward_cam3.MOV"
 input_cap = cv.VideoCapture(VIDEO_PATH)
 frame_width = int(input_cap.get(cv.CAP_PROP_FRAME_WIDTH))
 frame_height = int(input_cap.get(cv.CAP_PROP_FRAME_HEIGHT))
@@ -56,16 +56,15 @@ print("Size: {}".format(size))
 ################################### create output folder to store the video
 output_video = cv.VideoWriter( "output/jumping_demo.avi", cv.VideoWriter_fourcc(*'MJPG'), 20 , size, isColor = True)
 
-################################### 
-efficient_pose = EfficientPose(folder_path= r"/home/thaivu169/Projects/Turnstiles_Fare_Evasion_Python/output/bin_imgs"
-                     , model_name= "IV")
-
 # color for tracked objects 
 COLOR = [(255, 255, 0), (204, 0, 153), (26, 209, 255), (71, 107, 107)]
 
 try:   
    # create a YoLov5TRT instance
    yolov5_wrapper = YoLov5TRT(ENGINE_FILE_PATH)
+   # create a EfficientPose instance
+   efficient_pose = EfficientPose(folder_path= r"/home/thaivu169/Projects/Turnstiles_Fare_Evasion_Python/output/bin_imgs", model_name= "III")
+
    frame_count = 0
    while input_cap.isOpened():
       is_read, frame = input_cap.read()
@@ -114,10 +113,18 @@ try:
          if track.pre_state == track.current_state:
             continue
          else:
-            temp_img = frame[int(track_box[1]) : int(track_box[3]), int(track_box[0]) : int(track_box[2]),:]
+            
+            offset = 20
+            h_start = max(0, int(track_box[1]) - offset)
+            h_end = min(int(track_box[3]) + offset, frame.shape[0])
+            w_start = max(0, int(track_box[0]) - offset)
+            w_end =  min(int(track_box[2]) + offset, frame.shape[1]) 
+
+            temp_img = frame[h_start : h_end, w_start : w_end, :]
+            # temp_img = frame[int(track_box[1]) : int(track_box[3]), int(track_box[0]) : int(track_box[2]),:]
 
             label = efficient_pose.estimatePose(np.array(temp_img[...]), file_name= r"fc_{0}_tc_{1}.png".format(frame_count, track.track_id), stored= True)
-            cv.putText(drawable_frame, label , (300, 300), 0, 6, [0, 0, 250], thickness= 9, lineType= cv.LINE_AA,)
+            cv.putText(drawable_frame, label , (270, 270), 0, 6, [0, 0, 250], thickness= 10, lineType= cv.LINE_AA,)
 
             track.pre_state = track.current_state
             continue
@@ -127,6 +134,7 @@ try:
 finally:
    # destroy the instance
    yolov5_wrapper.destroy()
+   efficient_pose.destroy()
 
 input_cap.release()
 output_video.release()

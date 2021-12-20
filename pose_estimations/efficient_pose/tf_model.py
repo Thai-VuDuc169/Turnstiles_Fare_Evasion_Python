@@ -62,6 +62,8 @@ class EfficientPose:
       batch = helpers.preprocess(batch, self.resolution, self.lite)
       # Perform inference
       batch_outputs = self.infer(batch)
+      print("batch_outputs: ")
+      print(batch_outputs.shape)
       # Extract coordinates
       coordinates = helpers.extract_coordinates(batch_outputs[0,...], image_height, image_width)
       # Print processing time

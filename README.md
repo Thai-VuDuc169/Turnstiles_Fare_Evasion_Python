@@ -11,6 +11,7 @@
 - [Preparation](#preparation)
   - [Yolov5 custom model for human detection](#yolov5-custom-model-for-human-detection)
   - [Converting model to run on tensorrt](#converting-model-to-run-on-tensorrt)
+  - [Convert variant models of Efficient Pose to infer on tensorrt](#convert-variant-models-of-efficient-pose-to-infer-on-tensorrt)
 - [Some common errors when running on jetson devices](#some-common-errors-when-running-on-jetson-devices)
 - [Note](#note)
 
@@ -37,6 +38,7 @@ python3 -m venv tjd_tx2
 ```
 source ~/tjd_tx2/bin/activate
 export PYTHONPATH=/usr/lib/python3.6/dist-packages:$PYTHONPATH
+export LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
 ```
 ### Leaving the virtual env
 ```
@@ -132,6 +134,13 @@ ModuleNotFoundError: No module named 'tensorrt'
 ## Converting model to run on tensorrt
 - Refer: [wang-xinyu/tensorrtx](https://github.com/wang-xinyu/tensorrtx/tree/master/yolov5)
 
+## Convert variant models of Efficient Pose to infer on tensorrt
+- run the following command as : 
+```
+python3 builds/efficient_pose/buildEngine.py --onnx_file [onnx_file_path] --plan_file [plan_file_path]
+#Sample: python3 builds/efficient_pose/buildEngine.py --onnx_file /home/thaivu169/Projects/Turnstiles_Fare_Evasion_Python/models/efficient_pose/onnx/EfficientPoseI.onnx --plan_file /home/thaivu169/Projects/Turnstiles_Fare_Evasion_Python/plugins/efficient_pose/jetson_TX2/EfficientPoseI.plan
+```
+
 # Some common errors when running on jetson devices
 - OSError: /usr/lib/aarch64-linux-gnu/libgomp.so.1: cannot allocate memory in static TLS block
 ```
@@ -154,3 +163,12 @@ ls -ltrh /dev/video*
 ```
 ffprobe -v error -select_streams v:0 -show_entries stream=width,height:stream_tags=rotate -of csv=p=0 input.mp4
 ```
+- Graph and session of tensorflow (from v1):
+```
+Refer: https://danijar.com/what-is-a-tensorflow-session/
+```
+- Where is trtexec?
+```
+Refer: https://forums.developer.nvidia.com/t/where-is-trtexec/73514
+``` \ 
+_If TensorRT is installed manually, I believe you can find the code to build trtexec in /usr/src/tensorrt/samples/trtexec/ where you can run make to build it._
