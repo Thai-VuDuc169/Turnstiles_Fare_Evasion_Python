@@ -220,3 +220,60 @@ class EfficientPose:
          return POSE_DICT[0]
       else:
          return POSE_DICT[1]
+   
+   def animatePose(self, image, drawable_image, track_box, offset= 20, segment_width=5, marker_radius=5):
+      """
+      animate the human pose to drawable_image based on image (contains only a persion)
+      Args:
+         image: ndarray
+            The image to analyze (ảnh trích từ các track qua hàng rào ảo)
+         file_name: ndarray
+            The animated image (có kích thước lớn hơn image, ảnh frame)
+      """
+      # perform inference
+      coordinates = self.analyzeOneImage(image)
+      # body_part_colors = ['#fff142', '#fff142', '#576ab1', '#5883c4', '#56bdef', '#f19718', '#d33592', '#d962a6', '#e18abd', '#f19718', '#8ac691', '#a3d091', '#bedb8f', '#7b76b7', '#907ab8', '#a97fb9']
+      body_part_colors = ((12,53,200), (54,100,32), (200, 165,23), (212, 2, 100), (105, 200, 50), (50, 200, 205), (230, 23, 23), (56,67,87), (54,123,123), (50, 200, 205),  (212, 76, 54), (200, 165,23), (98, 98, 98), (130,103,130), (160,189,76), (133, 21, 51))
+
+      image_height = image.shape[0]
+      image_width = image.shape[1]
+      # Draw markers
+      for i, (_, body_part_x, body_part_y) in enumerate(coordinates):
+         body_part_x *= image_width
+         body_part_x = body_part_x - offset + track_box[0]
+
+         body_part_y *= image_height
+         body_part_y = body_part_y - offset + track_box[1]
+         cv.circle(drawable_image, (int(body_part_x), int(body_part_y)), radius= marker_radius, color= body_part_colors[i], thickness= -1)
+
+
+      # Define segments and colors
+      segments = [(0, 1), (1, 5), (5, 2), (5, 6), (5, 9), (2, 3), (3, 4), (6, 7), (7, 8), (9, 10), (9, 13), (10, 11), (11, 12), (13, 14), (14, 15)]
+      segment_colors = body_part_colors
+      # Draw segments
+      for (body_part_a_index, body_part_b_index) in segments:
+         _, body_part_a_x, body_part_a_y = coordinates[body_part_a_index]
+         body_part_a_x *= image_width
+         body_part_a_x = body_part_a_x - offset + track_box[0]
+         body_part_a_y *= image_height
+         body_part_a_y = body_part_a_y - offset + track_box[1]
+         _, body_part_b_x, body_part_b_y = coordinates[body_part_b_index]
+         body_part_b_x *= image_width
+         body_part_b_x = body_part_b_x - offset + track_box[0]
+         body_part_b_y *= image_height
+         body_part_b_y = body_part_b_y - offset + track_box[1]
+         cv.line(drawable_image, (int(body_part_a_x), int(body_part_a_y)), (int(body_part_b_x), int(body_part_b_y)), color= segment_colors[body_part_b_index], thickness= segment_width) 
+
+      v_backbone = helpers.genVector2D(coordinates[9][1:], coordinates[5][1:])
+      v_right_femur = helpers.genVector2D(coordinates[10][1:], coordinates[11][1:])
+      v_left_femur =  helpers.genVector2D(coordinates[13][1:], coordinates[14][1:])
+      bb_rf_angle = helpers.calcAngle2Vector(v_backbone, v_right_femur)
+      bb_lf_angle = helpers.calcAngle2Vector(v_backbone, v_left_femur)
+
+      print("The angle between v_backbone and v_right_femur: " + str(bb_rf_angle))
+      print("The angle between v_backbone and v_left_femur: " + str(bb_lf_angle))
+
+      if (bb_rf_angle > 90 and bb_lf_angle > 90):
+         return POSE_DICT[0]
+      else:
+         return POSE_DICT[1]

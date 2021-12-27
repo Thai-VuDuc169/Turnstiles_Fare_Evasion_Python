@@ -6,6 +6,7 @@ import shutil
 import threading
 import cv2 as cv
 import numpy as np
+sys.path.append(r"/home/thaivu169/Projects/Turnstiles_Fare_Evasion_Python")
 
 from detections.yolov5.yolov5_trt import YoLov5TRT
 
