@@ -1,5 +1,6 @@
 <font size= "5"> **Table Of Contents** </font>
 - [Introduction](#introduction)
+- [Demo](#demo)
 - [Setting enviroment](#setting-enviroment)
   - [With env tool](#with-env-tool)
     - [Creating a virtual enviroment](#creating-a-virtual-enviroment)
@@ -17,7 +18,14 @@
 
 
 # Introduction
-This project was created to deal with the problem of detecting fare evasion through turnstiles in public areas such as subway stations, airports, etc. This repo is implemented by python
+This project was created to deal with the problem of detecting fare evasion through turnstiles in public areas such as subway stations, airports, etc. This repo is implemented by python.
+# Demo
+
+<p align= "center">
+<img src="./images/Walking_Demo.gif" alt="Walking_Demo.gif Screenshot" style="width:320px;height:180px;" />
+<img src="./images/Jumping_Demo.gif" alt="Jumping_Demo.gif" style="width:320px;height:180px;" />
+</p>
+
 # Setting enviroment
 - Install pip for ubuntu:
 ```
@@ -170,5 +178,9 @@ Refer: https://danijar.com/what-is-a-tensorflow-session/
 - Where is trtexec?
 ```
 Refer: https://forums.developer.nvidia.com/t/where-is-trtexec/73514
-``` \ 
+```  
 _If TensorRT is installed manually, I believe you can find the code to build trtexec in /usr/src/tensorrt/samples/trtexec/ where you can run make to build it._
+- Keypoints of the EfficientPose model:
+<p align= "center">
+<img src="./images/keypoints.png" alt="EfficientPose's Keypoints" style="width:120px;height:200px;" />
+</p>
