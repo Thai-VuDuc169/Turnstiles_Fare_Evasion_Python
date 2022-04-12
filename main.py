@@ -34,7 +34,10 @@ tracker = Tracker(metric)
 ################################### declare a instance of VirtualFence
 # POINTS = ((431, 1092), (747, 929)) # A and B for cam 3
 POINTS = ((260, 1099), (810, 1098)) # A and B for cam 2
-virtual_fence = VirtualFence(POINTS[0], POINTS[1])
+POINTS = ((229, 345), (1533, 663)) # A and B for cam 2
+FORWARD_FLOW = 1     # =0 if (-) -> (+); =1 if (+) -> (-)
+VF_OFFSET = 20 # pixels
+virtual_fence = VirtualFence(POINTS[0], POINTS[1], VF_OFFSET)
 
 ################################### path to folder containing cropped images
 if os.path.exists(r'output/'):
@@ -45,31 +48,29 @@ CROPPED_IMAGES_PATH = r"output/"
 BIN_IMAGES_PATH = r"output/bin_imgs"
 
 ################################### path to video demo and capture frames
-VIDEO_PATH = r"test/videos/jumping_downward_cam2.MOV"
+VIDEO_PATH = r"test/videos/TQB_Turnstile_Video1.MOV"
 input_cap = cv.VideoCapture(VIDEO_PATH)
 frame_width = int(input_cap.get(cv.CAP_PROP_FRAME_WIDTH))
 frame_height = int(input_cap.get(cv.CAP_PROP_FRAME_HEIGHT))
-# size = (frame_width, frame_height)
-size = (frame_height, frame_width) # apply for input video: "test/videos/jumping_right_downward_cam3.MOV" 
+size = (frame_width, frame_height)
+# size = (frame_height, frame_width) # apply for input video: "test/videos/jumping_right_downward_cam3.MOV" 
 print("Size: {}".format(size))
 ################################### create output folder to store the video
 output_video = cv.VideoWriter( "output/jumping_demo.avi", cv.VideoWriter_fourcc(*'MJPG'), 20 , size, isColor = True)
 
-# color for tracked objects 
-COLOR = [(255, 255, 0), (204, 0, 153), (26, 209, 255), (71, 107, 107)]
 
 try:   
    # create a YoLov5TRT instance
    yolov5_wrapper = YoLov5TRT(ENGINE_FILE_PATH)
    # create a EfficientPose instance
-   efficient_pose = EfficientPose(folder_path= r"/home/thaivu169/Projects/Turnstiles_Fare_Evasion_Python/output/bin_imgs", model_name= "III")
+   efficient_pose = EfficientPose(folder_path= r"/home/thaivu169/Projects/Turnstiles_Fare_Evasion_Python/output/bin_imgs", model_name= "RT")
 
    frame_count = 0
    while input_cap.isOpened():
       is_read, frame = input_cap.read()
       if not is_read:
          break
-      frame = cv.rotate(frame, cv.ROTATE_90_CLOCKWISE)
+      # frame = cv.rotate(frame, cv.ROTATE_90_CLOCKWISE)
       drawable_frame = frame.copy()
       result_boxes, result_scores, result_classid, _ = yolov5_wrapper.inferOneImage(frame, drawable= None)
 
@@ -97,33 +98,33 @@ try:
          if not track.is_confirmed() or track.time_since_update > 1:
             continue
          
-
          # draw confirmed tracks 
          track_box = track.to_tlbr()
-         cv.rectangle(drawable_frame, (int(track_box[0]), int(track_box[1])), (int(track_box[2]), int(track_box[3])),
-                        COLOR[track.track_id%3], 6)
-         cv.putText(drawable_frame,"ID: " + str(track.track_id), (int(track_box[0]), int(track_box[1])), 0, 2, (0, 0, 255), 5)
-
-
+         cv.rectangle(drawable_frame, (int(track_box[0]), int(track_box[1])), (int(track_box[2]), int(track_box[3])), [0, 153, 255], 2)
+         cv.putText(drawable_frame,"ID: " + str(track.track_id), (int(track_box[0]), int(track_box[1])), 0, 1, (0, 0, 255), 1)
 
          if track.pre_state == None:
             track.pre_state = track.current_state
             continue
          if track.pre_state == track.current_state:
             continue
+
+         if ((not FORWARD_FLOW and track.pre_state == 1 and track.current_state == -1) \
+               or (FORWARD_FLOW and track.pre_state == -1 and track.current_state == 1)):
+            cv.rectangle(drawable_frame, (int(track_box[0]), int(track_box[1])), (int(track_box[2]), int(track_box[3])), [0, 255, 255], 4)
+            cv.putText(drawable_frame, "Warning: backward flow", (int(track_box[0]), int(track_box[1]) + 24), 0, 1, [0, 255, 255], thickness= 2, lineType= cv.LINE_AA,)
+            track.pre_state = track.current_state
+            continue
          else:
-            
             offset = 20
             h_start = max(0, int(track_box[1]) - offset)
             h_end = min(int(track_box[3]) + offset, frame.shape[0])
             w_start = max(0, int(track_box[0]) - offset)
             w_end =  min(int(track_box[2]) + offset, frame.shape[1]) 
-
             temp_img = frame[h_start : h_end, w_start : w_end, :]
-            
             label = efficient_pose.animatePose(temp_img, drawable_frame, track_box, offset, segment_width= int(frame.shape[0]/80), marker_radius= int(frame.shape[0]/80))
-            cv.putText(drawable_frame, label , (270, 270), 0, 6, [166, 116, 2], thickness= 10, lineType= cv.LINE_AA,)
-
+            cv.rectangle(drawable_frame, (int(track_box[0]), int(track_box[1])), (int(track_box[2]), int(track_box[3])), [166, 116, 2], 4)
+            cv.putText(drawable_frame, label , (int(track_box[0]), int(track_box[1]) + 24), 0, 1, [166, 116, 2], thickness= 2, lineType= cv.LINE_AA,)
             track.pre_state = track.current_state
             continue
       output_video.write(drawable_frame)
