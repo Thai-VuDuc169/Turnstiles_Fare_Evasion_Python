@@ -1,9 +1,7 @@
 from __future__ import division, print_function, absolute_import
-import sys
 import ctypes
 import os
 import shutil
-import threading
 import cv2 as cv
 import numpy as np
 
@@ -33,7 +31,7 @@ tracker = Tracker(metric)
 
 ################################### declare a instance of VirtualFence
 # POINTS = ((431, 1092), (747, 929)) # A and B for cam 3
-POINTS = ((260, 1099), (810, 1098)) # A and B for cam 2
+# POINTS = ((260, 1099), (810, 1098)) # A and B for cam 2
 POINTS = ((229, 345), (1533, 663)) # A and B for cam 2
 FORWARD_FLOW = 1     # =0 if (-) -> (+); =1 if (+) -> (-)
 VF_OFFSET = 20 # pixels

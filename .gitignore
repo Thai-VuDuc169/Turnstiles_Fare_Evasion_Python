@@ -137,3 +137,7 @@ dmypy.json
 # output folder
 output
 video_output
+
+# plugins
+plugins/efficient_pose/*
+plugins/human_yolov5/*

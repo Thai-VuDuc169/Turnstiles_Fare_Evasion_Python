@@ -161,9 +161,9 @@ class EfficientPose:
       # Save annotated image
       image.save(file_name)
    
-   def performPoseEstimation(self, image, file_name, stored= True):
+   def genCoordinates(self, image, file_name, stored= True):
       """
-      Process of estimating poses frome image.
+      Process of generating keypoints's coordinates in the image.
       Args:
          image: ndarray
             The image to analyze
@@ -172,7 +172,7 @@ class EfficientPose:
          stored: boolean
             Flag to store visualization of predicted poses
       Returns:
-         Boolean expressing if tracking was successfully performed.
+         keypoints's coordinates in the image
       """
       # perform inference
       coordinates = self.analyzeOneImage(image)
@@ -181,8 +181,8 @@ class EfficientPose:
          image_height = image.shape[0]
          image_width = image.shape[1]
          self.saveBinImage2Folder(os.path.join(self.folder_path, file_name), coordinates, image_height, image_width)
-         print("save the bin image successfully!")
-      return True
+         print("save bin image with file name: " + file_name +  " successfully!")
+      return coordinates
 
    def estimatePose(self, image, file_name, stored= True):
       """
