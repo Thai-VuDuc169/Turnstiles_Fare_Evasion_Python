@@ -17,8 +17,8 @@ from utils.vf_logic_checking import tlbr2tlwh, cropImage, VirtualFence
 from pose_estimations.efficient_pose.trt_model import EfficientPose
 
 ################################### path to plugin and engine of the customized human detection 
-PLUGIN_LIBRARY = r"plugins/human_yolov5/jetson_TX2/libmyplugins.so"
-ENGINE_FILE_PATH = r"plugins/human_yolov5/jetson_TX2/human_yolov5s_v5.engine"
+PLUGIN_LIBRARY = r"plugins/human_yolov5/quardo_p4000/libmyplugins.so"
+ENGINE_FILE_PATH = r"plugins/human_yolov5/quardo_p4000/yolov5n_v6.engine"
 ctypes.CDLL(PLUGIN_LIBRARY)
 
 ################################### path to a model of traking and initialize a tracker
@@ -32,9 +32,10 @@ tracker = Tracker(metric)
 ################################### declare a instance of VirtualFence
 # POINTS = ((431, 1092), (747, 929)) # A and B for cam 3
 # POINTS = ((260, 1099), (810, 1098)) # A and B for cam 2
-POINTS = ((229, 345), (1533, 663)) # A and B for cam 2
+# POINTS = ((229, 345), (1533, 663)) # A and B for TQB video (1)
+POINTS = ((310, 304), (1557, 627)) # A and B for TQB video (2)
 FORWARD_FLOW = 1     # =0 if (-) -> (+); =1 if (+) -> (-)
-VF_OFFSET = 20 # pixels
+VF_OFFSET = 25 # pixels
 virtual_fence = VirtualFence(POINTS[0], POINTS[1], VF_OFFSET)
 
 ################################### path to folder containing cropped images
@@ -61,7 +62,7 @@ try:
    # create a YoLov5TRT instance
    yolov5_wrapper = YoLov5TRT(ENGINE_FILE_PATH)
    # create a EfficientPose instance
-   efficient_pose = EfficientPose(folder_path= r"/home/thaivu169/Projects/Turnstiles_Fare_Evasion_Python/output/bin_imgs", model_name= "RT")
+   efficient_pose = EfficientPose(folder_path= r"/home/thaivu169/Projects/Turnstiles_Fare_Evasion_Python/output/bin_imgs", model_name= "RT", svm_clf_path= r"models/svm_clf/RT_SVM_skl102.sav")
 
    frame_count = 0
    while input_cap.isOpened():
@@ -118,9 +119,10 @@ try:
             h_start = max(0, int(track_box[1]) - offset)
             h_end = min(int(track_box[3]) + offset, frame.shape[0])
             w_start = max(0, int(track_box[0]) - offset)
-            w_end =  min(int(track_box[2]) + offset, frame.shape[1]) 
+            w_end =  min(int(track_box[2]) + offset, frame.shape[1])
             temp_img = frame[h_start : h_end, w_start : w_end, :]
-            label = efficient_pose.animatePose(temp_img, drawable_frame, track_box, offset, segment_width= int(frame.shape[0]/80), marker_radius= int(frame.shape[0]/80))
+            # label = efficient_pose.animatePose(temp_img, drawable_frame, track_box, offset, segment_width= int(frame.shape[0]/80), marker_radius= int(frame.shape[0]/80))
+            label = efficient_pose.animatePoseWithSVM (temp_img, drawable_frame, track_box, offset, segment_width= int(frame.shape[0]/80), marker_radius= int(frame.shape[0]/80))
             cv.rectangle(drawable_frame, (int(track_box[0]), int(track_box[1])), (int(track_box[2]), int(track_box[3])), [166, 116, 2], 4)
             cv.putText(drawable_frame, label , (int(track_box[0]), int(track_box[1]) + 24), 0, 1, [166, 116, 2], thickness= 2, lineType= cv.LINE_AA,)
             track.pre_state = track.current_state
